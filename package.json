@@ -1,0 +1,50 @@
+{
+  "name": "superset-plugin-gant-chart",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Superset Plugin Gant Chart",
+  "sideEffects": false,
+  "main": "lib/index.js",
+  "module": "esm/index.js",
+  "files": [
+    "esm",
+    "lib"
+  ],
+  "scripts": {
+    "_prettier": "prettier './({src,spec,cypress-base,plugins,packages,.storybook}/**/*{.js,.jsx,.ts,.tsx,.css,.less,.scss,.sass}|package.json)'",
+    "prebuild": "rimraf {lib,esm,tsconfig.tsbuildinfo}",
+    "build": "npm run build-cjs && npm run build-esm && npm run ts-types --color",
+    "postbuild": "npm run test",
+    "build-cjs": "babel src --extensions \".ts,.tsx,.js,.jsx\" --copy-files --out-dir lib",
+    "build-clean": "npm run clean && npm run build",
+    "build-esm": "BABEL_OUTPUT=esm babel src --extensions \".ts,.tsx,.js,.jsx\" --copy-files --out-dir esm",
+    "dev": "BABEL_OUTPUT=esm babel src --extensions \".ts,.tsx,.js,.jsx\" --watch --copy-files --out-dir esm",
+    "prettier": "npm run _prettier -- --write",
+    "test": "jest",
+    "ts-types": "tsc --build"
+  },
+  "dependencies": {
+    "@types/d3": "^5.7.0",
+    "d3": "^5.7.0",
+    "eslint-config-prettier": "^7.1.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "prettier": "^2.4.1",
+    "prettier-plugin-packagejson": "^2.2.15"
+  },
+  "devDependencies": {
+    "@airbnb/config-babel": "^2.0.1",
+    "@babel/cli": "^7.16.0",
+    "@types/jest": "^26.0.4",
+    "jest": "^26.6.3",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.1.2"
+  },
+  "peerDependencies": {
+    "@superset-ui/chart-controls": "*",
+    "@superset-ui/core": "*",
+    "react": "^16.13.1"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
