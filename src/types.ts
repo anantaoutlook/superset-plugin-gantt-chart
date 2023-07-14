@@ -37,8 +37,9 @@ export type SupersetPluginGanttChartQueryFormData = QueryFormData &
   SupersetPluginGanttChartStylesProps &
   SupersetPluginGanttChartCustomizeProps;
 
-export type SupersetPluginGanttChartProps = SupersetPluginGanttChartStylesProps &
-  SupersetPluginGanttChartCustomizeProps & {
-    data: TimeseriesDataRecord[];
-    // add typing here for the props you pass in from transformProps.ts!
-  };
+export type SupersetPluginGanttChartProps =
+  SupersetPluginGanttChartStylesProps &
+    SupersetPluginGanttChartCustomizeProps & {
+      data: TimeseriesDataRecord[];
+      // add typing here for the props you pass in from transformProps.ts!
+    };

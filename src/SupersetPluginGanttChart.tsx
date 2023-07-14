@@ -83,27 +83,34 @@ export default function SupersetPluginGanttChart(
 ) {
   // height and width are the height and width of the DOM element as it exists in the dashboard.
   // There is also a `data` prop, which is, of course, your DATA 🎉
-  const { data, height, width } = props;
+  const { data, width } = props;
+  // console.log('data', data);
+  let tempheight = props && (props.height * 35) / 100;
+  // console.log("org", props.height);
+  // console.log("temp", tempheight);
+
+  const height = props.height - tempheight;
+  // console.log("cal",height)
   // console.log('DATA', data);
   const rootElem = createRef<HTMLDivElement>();
   useEffect(() => {
     d3.select("#graphic").selectAll("svg").remove();
-    createChart();
+    createChart(rootElem);
   });
 
   let minNum = 0;
   let maxNum = 0;
-  const createChart = () => {
-    const element = document.getElementById("graphic");
+  const createChart = (divEle: any) => {
+    // const element = document.getElementById("graphic");
     const svg = d3
-      .select(element)
+      .select("#graphic")
       .append("svg")
       .attr("width", width)
-      .attr("height", height)
+      .attr("height", height + 15)
       .attr("class", "svg");
 
-    const taskArray = data.sort((a: any, b: any) => (b.task > a.task ? -1 : 1));
-    console.log("taskArray", taskArray);
+    const taskArray = data.sort((a: any, b: any) => (b.from > a.from ? -1 : 1));
+    // console.log("taskArray", taskArray);
     const min: any = d3.min(taskArray, (d: any) => d.startTime);
     const max: any = d3.max(taskArray, (d: any) => d.endTime);
     minNum = min;
@@ -115,7 +122,7 @@ export default function SupersetPluginGanttChart(
 
     let categories = new Array();
     for (let i = 0; i < taskArray.length; i++) {
-      categories.push(taskArray[i].type);
+      categories.push(taskArray[i].from);
     }
     const catsUnfiltered = categories; //for vert labels
     categories = checkUnique(categories);
@@ -125,7 +132,7 @@ export default function SupersetPluginGanttChart(
       .append("text")
       .text("Time since case started (minutes)")
       .attr("x", width / 2)
-      .attr("y", height - 10)
+      .attr("y", height + 10)
       .attr("text-anchor", "middle")
       .attr("font-size", 11)
       // .attr("transform", "rotate(-65)")
@@ -162,7 +169,7 @@ export default function SupersetPluginGanttChart(
     svg: any,
     catsUnfiltered: any
   ) => {
-    console.log("makeGant");
+    // console.log("makeGant");
 
     const barHeight = 20;
     const gap = barHeight + 4;
@@ -185,16 +192,7 @@ export default function SupersetPluginGanttChart(
       categories,
       timeScale
     );
-    vertLabels(
-      gap,
-      topPadding,
-      sidePadding,
-      barHeight,
-      colorScale,
-      svg,
-      categories,
-      catsUnfiltered
-    );
+    vertLabels(gap, topPadding, svg);
   };
   const makeGrid = (
     theSidePad: any,
@@ -204,7 +202,7 @@ export default function SupersetPluginGanttChart(
     timeScale: any,
     svg: any
   ) => {
-    console.log("makeGrid");
+    // console.log("makeGrid");
     // verticle ticks
     const total = minNum + maxNum;
     let ticks = 1;
@@ -222,6 +220,7 @@ export default function SupersetPluginGanttChart(
     }
 
     // console.log('-h + theTopPad + 20',-h ,theTopPad,  -h + theTopPad + 20 );
+    // console.log('tick  size', -h + theTopPad + 20)
     const xAxis = d3
       .axisBottom(timeScale)
       // .scale(timeScale)
@@ -234,31 +233,23 @@ export default function SupersetPluginGanttChart(
           return "";
         }
       });
-    // .tickSizeOuter(0)
-    /* .tickFormat((d: any, i: number) => {
-	  /* .tickFormat((d: any, i: number) => {
-        if (i % 2 === 0) {
-          return d3.timeFormat('%H:%M')(d);
-        } else {
-          return '';
-        }
-      }); */
 
     // const grid
     svg
       .append("g")
       .attr("class", "grid")
-      .attr("transform", "translate(" + theSidePad + ", " + (h - 50) + ")")
+      .attr("transform", "translate(" + theSidePad + ", " + (h - 20) + ")")
       .call(xAxis)
       .selectAll("text")
       .style("text-anchor", "middle")
-      // .attr("fill", "grey")
-      .attr("stroke", "none")
+      .attr("stroke", "#808080")
+      .attr("stroke-width", "0.5px")
       .attr("font-size", 10)
       .attr("dy", "1em");
   };
 
   // Draw horizontal rectangles
+  const eleWithIndex: any = [];
   const drawRects = (
     theArray: any,
     theGap: any,
@@ -273,16 +264,43 @@ export default function SupersetPluginGanttChart(
     timeScale: any
   ) => {
     // console.log('drawRects');
+    const rectArray = [...theArray.filter((dt: any) => dt.endTime !== null)];
+    /* let row_count: any = 0;
+    const count_rows = (rectArray: any) => {
+      let prev = rectArray[0];
+      let d: any;
+      for (let i = 1; i < rectArray.length; i++) {
+        d = rectArray[i];
+        let res = overlapCheck(d, prev);
+        res ? row_count++ : null;
+        prev = d;
+      }
+    };
+    console.log('groupedData', groupedData);
+    count_rows(innerSortedArray);
+    let grid_array: any = [];
+    for (let i = 1; i < row_count; i++) {
+      grid_array.push(1);
+    } */
 
-    // horizontal grid lines background
-    // theArray.splice(1,1);
-    /* const rectArray = [...theArray]
-    rectArray.splice(1,1);
-    console.log('rectArray', rectArray); */
+    const groupedData = groupData(rectArray);
+    const uniqueCategories: any = Array.from(
+      new Set(rectArray.map((d: any) => d.from))
+    );
+    const noOfRects: any = [];
+    uniqueCategories.forEach((cat: any) => {
+      const check = checkInline(cat);
+      let total = 0;
+      total = check.single + 1;
+      for (let index = 0; index < total; index++) {
+        noOfRects.push(1);
+      }
+    });
     svg
       .append("g")
       .selectAll("rect")
-      .data(theArray)
+      .filter((d: any) => d.endTime !== null)
+      .data(noOfRects)
       .enter()
       .append("rect")
       .attr("x", 40)
@@ -292,114 +310,164 @@ export default function SupersetPluginGanttChart(
       .attr("width", (d: any) => {
         return w - theSidePad / 2;
       })
-      .attr("height", theGap)
+      .attr("height", (d: any) => {
+        return theGap;
+      })
       .attr("stroke", "#808080")
       .attr("stroke-width", "0.5px")
-      .attr("fill", (d: any) => {
-        for (let i = 0; i < categories.length; i++) {
-          if (d.type == categories[i]) {
-            return "#fff";
-          }
-        }
-        return "";
-      })
+      .attr("fill", "#fff")
       .attr("opacity", 0.2);
 
-    /* let preElement: any;
-    theArray.forEach((element: any, rectIndex: number) => {
-      if (preElement && element.task === preElement.task) {
-        preElement = undefined;
-        return;
-      } else {
-        svg
-        .append("g")
-        .selectAll("rect")
-        .append("rect")
-        .attr("x", 40)
-        .attr("y", (d: any, i: any) => {
-          return rectIndex * theGap + theTopPad - 2;
-        })
-        .attr("width", (d: any) => {
-          return w - theSidePad / 2;
-        })
-        .attr("height", theGap)
-        .attr("stroke", "#808080")
-        .attr("stroke-width", "0.5px")
-        .attr("fill", (d: any) => {
-          for (let i = 0; i < categories.length; i++) {
-            if (d.type == categories[i]) {
-              return "#fff";
-            }
-          }
-          return "";
-        })
-        .attr("opacity", 0.2);
-        preElement = element;
-      }
-    }); */
-
-    const rectangles = svg.append("g").selectAll("rect").data(theArray).enter();
+    const rectangles = svg
+      .append("g")
+      .selectAll("rect")
+      .data(noOfRects)
+      .enter();
 
     // inner reactangle drawer
-    // console.log("rectangles", rectangles);
 
     let prev: any;
     let prevY: number;
-    let x: number = 0;
     let y: number = 0;
-    // let flag: number = 0;
-    let width: number = 0;
     let i: number = 0;
-    const newArray = [...theArray];
+    let prevI: number = 0;
+    // const newArray = [...theArray.filter((dt: any) => dt.endTime !== null)];
     let innerRects: any;
+    const colors = ["#74c7e9", "#f17878", "#73dbd3", "#dbda73"];
+
+    // sort records by startTime and append inner rectangles
+    let innerSortedArray: Array<any> = [];
+    groupedData.groups.forEach((element: any) => {
+      const sort = element.childs.sort((a: any, b: any) =>
+        b.startTime > a.startTime ? -1 : 1
+      );
+      innerSortedArray = [...innerSortedArray, ...sort];
+    });
+    // sorting end
 
     innerRects = rectangles
-      .data(newArray)
+      .data([...innerSortedArray])
       .append("rect")
       .attr("rx", 3)
       .attr("ry", 3)
       .attr("x", function (d: any) {
-        x = timeScale(d.startTime) + theSidePad;
-        return x;
+        return timeScale(d.startTime) + theSidePad;
       })
       .attr("y", function (d: any) {
-        if (prev && d.details === prev.details) {
+        if (prev && d.from === prev.from && overlapCheck(d, prev)) {
+          eleWithIndex.push({
+            task: d,
+            index: prevI,
+          });
           y = prevY;
           return y;
         } else {
           y = i * theGap + theTopPad;
+          eleWithIndex.push({
+            task: d,
+            index: i,
+          });
           prev = d;
           prevY = y;
+          prevI = i;
           i++;
           return y;
         }
       })
       .attr("width", function (d: any) {
-        width = timeScale(d.endTime) - timeScale(d.startTime);
-        return width;
+        return timeScale(d.endTime) - timeScale(d.startTime);
       })
       .attr("height", theBarHeight)
       .attr("stroke", "none")
-      .attr("fill", "#A6CEE3");
-
-    // console.log(innerRects);
+      .attr("fill", (d: any, index: number) => {
+        const check = checkInline(d.from);
+        const ele = check.items.filter(
+          (dt: any) =>
+            dt.status === "single" &&
+            d.startTime === dt.startTime &&
+            d.endTime === dt.endTime &&
+            d.from === dt.from
+        )[0];
+        if (ele) {
+          return colors[check.items.indexOf(ele)];
+        } else {
+          return colors[0];
+        }
+      });
 
     // mouse over popup on inner rectangles
     innerRects
       .on("mouseover", (e: any, index: any, array: any) => {
-        let tag = "";
-        if (e.details != undefined) {
-          tag = `Task:  ${e.task} <br/> Type:  ${e.type} <br/> Starts:  ${e.startTime} <br/> Ends:  ${e.endTime} <br/> Details:  ${e.details}`;
-        } else {
-          tag = `Task: ${e.task} <br/> Type: ${e.type} <br/> Starts:  ${e.startTime} <br/> Ends:  ${e.endTime}`;
-        }
+        const eleIndex = eleWithIndex.filter((d: any) => d.task === e)[0].index;
+        const tag = `From:  ${e.from} <br/> To:  ${e.to} <br/> Start Time:  ${e.startTime} <br/> End Time:  ${e.endTime}`;
         const output: any = document.getElementById("tag");
         const x =
           timeScale(e.startTime) +
           theSidePad +
-          (timeScale(e.endTime) - timeScale(e.startTime)) / 2 +
+          (timeScale(e.endTime) - timeScale(e.startTime)) / 2 -
+          15 +
           "px";
-        const y = index * theGap + theTopPad + 25 + "px";
+        const y = eleIndex * theGap + theTopPad + 25 + "px";
+        output.innerHTML = tag;
+        output.style.top = y;
+        output.style.left = x;
+        output.style.display = "block";
+      })
+      .on("mouseout", () => {
+        const output: any = document.getElementById("tag");
+        output.style.display = "none";
+      });
+
+    // inner rectangle text
+    // console.log('rectangles', rectangles);
+    prevY = 0;
+    y = 0;
+    let textIndex: any = 0;
+    // const innerText =
+    const innerText = rectangles
+      .append("text")
+      .text((d: any) => {
+        return d.to;
+      })
+      .attr("x", (d: any) => {
+        return (
+          (timeScale(d.endTime) - timeScale(d.startTime)) / 2 +
+          timeScale(d.startTime) +
+          theSidePad
+        );
+      })
+      .attr("y", (d: any) => {
+        if (prev && d.from === prev.from && overlapCheck(d, prev)) {
+          y = prevY;
+          return y + 15;
+        } else {
+          if (d.endTime == null) {
+            return 0;
+          }
+          y = textIndex * theGap + theTopPad;
+          prev = d;
+          prevY = y;
+          textIndex++;
+          return y + 15;
+        }
+      })
+      .attr("font-size", 11)
+      .attr("text-anchor", "middle")
+      .attr("text-height", theBarHeight)
+      .attr("fill", "#fff");
+
+    innerText
+      .on("mouseover", (e: any, index: any, array: any) => {
+        const eleIndex = eleWithIndex.filter((d: any) => d.task === e)[0].index;
+        const tag = `From:  ${e.from} <br/> To:  ${e.to} <br/> Start Time:  ${e.startTime} <br/> End Time:  ${e.endTime}`;
+        const output: any = document.getElementById("tag");
+        const x =
+          timeScale(e.startTime) +
+          theSidePad +
+          (timeScale(e.endTime) - timeScale(e.startTime)) / 2 -
+          15 +
+          "px";
+        const y = eleIndex * theGap + theTopPad + 25 + "px";
         output.innerHTML = tag;
         output.style.top = y;
         output.style.left = x;
@@ -412,61 +480,68 @@ export default function SupersetPluginGanttChart(
   };
 
   // X Axis label
-  const vertLabels = (
-    theGap: any,
-    theTopPad: any,
-    theSidePad: any,
-    theBarHeight: any,
-    theColorScale: any,
-    svg: any,
-    categories: any,
-    catsUnfiltered: any
-  ) => {
-    // console.log('vertLabels');
-    const numOccurances = new Array();
-    let prevGap = 0;
-
-    for (let i = 0; i < categories.length; i++) {
-      numOccurances[i] = [
-        categories[i],
-        getCount(categories[i], catsUnfiltered),
-      ];
-    }
-    //console.log(numOccurances);
-    // const Y axisText =
+  const vertLabels = (theGap: any, theTopPad: any, svg: any) => {
+    let prev: any;
+    let y: number = 0;
+    let index: number = 0;
+    const categories: any = [];
+    // console.log('theGap, theTopPad, svg', theGap, theTopPad, svg);
     svg
-      .append("g") //without doing this, impossible to put grid lines behind text
+      .append("g")
       .selectAll("text")
-      .data(numOccurances)
+      .data(data.filter((dt) => dt.endTime !== null))
       .enter()
       .append("text")
       .text((d: any) => {
-        return d[0];
+        return d.from;
       })
       .attr("x", 35)
       .attr("y", (d: any, i: any) => {
-        if (i > 0) {
-          for (let j = 0; j < i; j++) {
-            prevGap += numOccurances[i - 1][1];
-            return prevGap * theGap + theTopPad - 10;
-          }
+        if (prev && d.from === prev.from && overlapCheck(d, prev)) {
+          return;
         } else {
-          return (d[1] * theGap) / 3.5 + theTopPad;
+          if (categories.indexOf(d.from) === -1) {
+            y = index * theGap + theTopPad;
+            prev = d;
+            categories.push(d.from);
+            const check = checkInline(d.from);
+            if (check.inline !== check.total) {
+              index += check.total;
+              return y + 15 * check.total - 5;
+            } else {
+              index += 1;
+              return y + 15;
+            }
+          } else {
+            return 0;
+          }
         }
-        return "";
       })
       .attr("font-size", 11)
       .attr("text-anchor", "end")
       .attr("text-height", 14);
-    // Y Axis label fill color
-    // .attr("fill", (d: any) => {
-    //     for (let i = 0; i < categories.length; i++) {
-    //       if (d[0] == categories[i]) {
-    //         return d3.rgb(theColorScale(i)).darker();
-    //       }
-    //     }
-    //     return "";
-    //   });
+  };
+
+  const checkInline = (task: any) => {
+    const grouped: any = groupData(data.filter((d: any) => d.endTime !== null));
+    const filter = grouped.groups.filter((d: any) => d.task === task);
+    if (filter.length > 0) {
+      return {
+        total: filter[0].childs.length,
+        inline: filter[0].childs.filter((d: any) => d.status === "inline")
+          .length,
+        single: filter[0].childs.filter((d: any) => d.status === "single")
+          .length,
+        items: filter[0].childs,
+        task: task,
+      };
+    } else {
+      return {
+        total: 0,
+        inline: 0,
+        items: filter,
+      };
+    }
   };
 
   const checkUnique = (arr: any) => {
@@ -475,7 +550,6 @@ export default function SupersetPluginGanttChart(
     const result: any = [];
     for (let i = 0, l = arr.length; i < l; ++i) {
       if (!hash.hasOwnProperty(arr[i])) {
-        //it works with objects! in FF, at least
         hash[arr[i]] = true;
         result.push(arr[i]);
       }
@@ -483,17 +557,44 @@ export default function SupersetPluginGanttChart(
     return result;
   };
 
-  const getCounts = (arr: any) => {
-    // console.log('getCounts');
-    let i = arr.length; // var to loop over
-    const obj: any = {}; // obj to store results
-    while (i) obj[arr[--i]] = (obj[arr[i]] || 0) + 1; // count occurrences
-    return obj;
-  };
-
-  const getCount = (word: any, arr: any) => {
-    // console.log('getCount');
-    return getCounts(arr)[word] || 0;
+  function overlapCheck(current: any, previous: any) {
+    if (
+      current.startTime < previous.endTime &&
+      current.endTime > previous.startTime
+    ) {
+      return false;
+    }
+    return true;
+  }
+  const groupData = (tasks: any) => {
+    const uniqueCategories: any = Array.from(
+      new Set(tasks.map((d: any) => d.from))
+    );
+    const groupedData: any = [];
+    uniqueCategories.forEach((element: any) => {
+      const sortedEle = tasks
+        .filter((d: any) => d.from === element)
+        .sort((a: any, b: any) => (b.startTime > a.startTime ? -1 : 1));
+      let prev: any;
+      const children: any = [];
+      sortedEle.forEach((d: any, index: number) => {
+        if (prev && prev.from === d.from && overlapCheck(prev, d)) {
+          children.push({ ...d, status: "inline" });
+        } else {
+          if (children.length === 0) {
+            children.push({ ...d, status: "inline" });
+          } else {
+            children.push({ ...d, status: "single" });
+          }
+        }
+        prev = d;
+      });
+      groupedData.push({
+        task: element,
+        childs: children,
+      });
+    });
+    return { groups: groupedData, uniqueCategories: uniqueCategories };
   };
 
   return (
