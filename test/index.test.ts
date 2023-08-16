@@ -26,7 +26,7 @@ import { SupersetPluginGanttChart } from '../src';
  * treated correctly (e.g. formData from plugin controls
  * properly transform the data and/or any resulting props).
  */
-describe('superset-plugin-gant-chart', () => {
+describe('superset-plugin-gantt-chart', () => {
   it('exists', () => {
     expect(SupersetPluginGanttChart).toBeDefined();
   });

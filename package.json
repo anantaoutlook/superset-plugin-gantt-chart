@@ -1,8 +1,8 @@
 {
-  "name": "superset-plugin-gant-chart",
+  "name": "superset-plugin-gantt-chart",
   "version": "0.1.0",
   "private": true,
-  "description": "Superset Plugin Gant Chart",
+  "description": "Superset Plugin Gantt Chart",
   "sideEffects": false,
   "main": "lib/index.js",
   "module": "esm/index.js",
