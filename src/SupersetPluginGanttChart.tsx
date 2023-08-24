@@ -17,7 +17,7 @@
  * under the License.
  */
 import React, { useEffect, createRef } from "react";
-import { styled } from "@superset-ui/core";
+import { styled, t } from "@superset-ui/core";
 import {
   SupersetPluginGanttChartProps,
   SupersetPluginGanttChartStylesProps,
@@ -52,7 +52,7 @@ const Styles = styled.div<SupersetPluginGanttChartStylesProps>`
     display: none;
     padding: 3px 10px;
     margin-left: -80px;
-    font-size: 11px;
+    font-size: 9px;
     box-shadow: 0px 0px 5px #808080;
   }
 
@@ -108,17 +108,18 @@ export default function SupersetPluginGanttChart(
       .attr("width", width)
       .attr("height", height + 15)
       .attr("class", "svg");
-
-    const taskArray = data.sort((a: any, b: any) => (b.from > a.from ? -1 : 1));
+    const filteredData = data; // .filter((d: any)=> d.starttime !== d.endtime );
+    // console.log('filteredData', filteredData);
+    const taskArray = filteredData.sort((a: any, b: any) => (b.from > a.from ? -1 : 1));
     // console.log("taskArray", taskArray);
-    const min: any = d3.min(taskArray, (d: any) => d.startTime);
-    const max: any = d3.max(taskArray, (d: any) => d.endTime);
+    const min: any = d3.min(taskArray, (d: any) => d.starttime);
+    const max: any = d3.max(taskArray, (d: any) => d.endtime);
     minNum = min;
     maxNum = max;
     const timeScale: any = d3
       .scaleLinear()
       .domain([min, max])
-      .range([0, width - 150]);
+      .range([0, width - 260]); // horizontal rectangle last tick right padding
 
     let categories = new Array();
     for (let i = 0; i < taskArray.length; i++) {
@@ -132,9 +133,9 @@ export default function SupersetPluginGanttChart(
       .append("text")
       .text("Time since case started (minutes)")
       .attr("x", width / 2)
-      .attr("y", height + 10)
+      .attr("y", height + 15)
       .attr("text-anchor", "middle")
-      .attr("font-size", 11)
+      .attr("font-size", 9)
       // .attr("transform", "rotate(-65)")
       .attr("fill", "#000000");
 
@@ -145,7 +146,7 @@ export default function SupersetPluginGanttChart(
       .attr("x", 0)
       .attr("y", height / 2)
       .attr("text-anchor", "middle")
-      .attr("font-size", 11)
+      .attr("font-size", 9)
       .attr("transform", `rotate(-90-5 ${height / 2 - 15})`)
       .attr("fill", "#000000");
 
@@ -156,7 +157,8 @@ export default function SupersetPluginGanttChart(
       categories,
       timeScale,
       svg,
-      catsUnfiltered
+      catsUnfiltered,
+      filteredData
     );
   };
 
@@ -167,14 +169,15 @@ export default function SupersetPluginGanttChart(
     categories: any,
     timeScale: any,
     svg: any,
-    catsUnfiltered: any
+    catsUnfiltered: any,
+    filteredData: any
   ) => {
     // console.log("makeGant");
 
-    const barHeight = 20;
-    const gap = barHeight + 4;
+    const barHeight = 25;
+    const gap = barHeight + 6;
     const topPadding = 75;
-    const sidePadding = 75;
+    const sidePadding = 160; // grid left side padding of ticks rendering
 
     const colorScale = d3.scaleLinear().domain([0, categories.length]);
 
@@ -190,9 +193,10 @@ export default function SupersetPluginGanttChart(
       pageHeight,
       svg,
       categories,
-      timeScale
+      timeScale,
+      filteredData
     );
-    vertLabels(gap, topPadding, svg);
+    vertLabels(gap, topPadding, svg, filteredData);
   };
   const makeGrid = (
     theSidePad: any,
@@ -219,8 +223,7 @@ export default function SupersetPluginGanttChart(
       ticks = 10;
     }
 
-    // console.log('-h + theTopPad + 20',-h ,theTopPad,  -h + theTopPad + 20 );
-    // console.log('tick  size', -h + theTopPad + 20)
+    // Y axis ticks height
     const xAxis = d3
       .axisBottom(timeScale)
       // .scale(timeScale)
@@ -261,10 +264,11 @@ export default function SupersetPluginGanttChart(
     h: any,
     svg: any,
     categories: any,
-    timeScale: any
+    timeScale: any,
+    filteredData: any
   ) => {
     // console.log('drawRects');
-    const rectArray = [...theArray.filter((dt: any) => dt.endTime !== null)];
+    const rectArray = [...theArray.filter((dt: any) => dt.endtime !== null)];
     /* let row_count: any = 0;
     const count_rows = (rectArray: any) => {
       let prev = rectArray[0];
@@ -289,21 +293,23 @@ export default function SupersetPluginGanttChart(
     );
     const noOfRects: any = [];
     uniqueCategories.forEach((cat: any) => {
-      const check = checkInline(cat);
+      const check = checkInline(cat, filteredData);
       let total = 0;
       total = check.single + 1;
       for (let index = 0; index < total; index++) {
         noOfRects.push(1);
       }
     });
+
+    // draw x axis rectangles
     svg
       .append("g")
       .selectAll("rect")
-      .filter((d: any) => d.endTime !== null)
+      .filter((d: any) => d.endtime !== null)
       .data(noOfRects)
       .enter()
       .append("rect")
-      .attr("x", 40)
+      .attr("x", 120)
       .attr("y", (d: any, i: any) => {
         return i * theGap + theTopPad - 2;
       })
@@ -331,15 +337,15 @@ export default function SupersetPluginGanttChart(
     let y: number = 0;
     let i: number = 0;
     let prevI: number = 0;
-    // const newArray = [...theArray.filter((dt: any) => dt.endTime !== null)];
+    // const newArray = [...theArray.filter((dt: any) => dt.endtime !== null)];
     let innerRects: any;
     const colors = ["#74c7e9", "#f17878", "#73dbd3", "#dbda73"];
 
-    // sort records by startTime and append inner rectangles
+    // sort records by starttime and append inner rectangles
     let innerSortedArray: Array<any> = [];
     groupedData.groups.forEach((element: any) => {
       const sort = element.childs.sort((a: any, b: any) =>
-        b.startTime > a.startTime ? -1 : 1
+        b.starttime > a.starttime ? -1 : 1
       );
       innerSortedArray = [...innerSortedArray, ...sort];
     });
@@ -351,7 +357,7 @@ export default function SupersetPluginGanttChart(
       .attr("rx", 3)
       .attr("ry", 3)
       .attr("x", function (d: any) {
-        return timeScale(d.startTime) + theSidePad;
+        return timeScale(d.starttime) + theSidePad;
       })
       .attr("y", function (d: any) {
         if (prev && d.from === prev.from && overlapCheck(d, prev)) {
@@ -375,17 +381,17 @@ export default function SupersetPluginGanttChart(
         }
       })
       .attr("width", function (d: any) {
-        return timeScale(d.endTime) - timeScale(d.startTime);
+        return timeScale(d.endtime) - timeScale(d.starttime);
       })
       .attr("height", theBarHeight)
       .attr("stroke", "none")
       .attr("fill", (d: any, index: number) => {
-        const check = checkInline(d.from);
+        const check = checkInline(d.from, filteredData);
         const ele = check.items.filter(
           (dt: any) =>
             dt.status === "single" &&
-            d.startTime === dt.startTime &&
-            d.endTime === dt.endTime &&
+            d.starttime === dt.starttime &&
+            d.endtime === dt.endtime &&
             d.from === dt.from
         )[0];
         if (ele) {
@@ -399,18 +405,19 @@ export default function SupersetPluginGanttChart(
     innerRects
       .on("mouseover", (e: any, index: any, array: any) => {
         const eleIndex = eleWithIndex.filter((d: any) => d.task === e)[0].index;
-        const tag = `From:  ${e.from} <br/> To:  ${e.to} <br/> Start Time:  ${e.startTime} <br/> End Time:  ${e.endTime}`;
+        const tag = `From:  ${e.from} <br/> To:  ${e.to} <br/> Start Time:  ${e.starttime} <br/> End Time:  ${e.endtime}`;
         const output: any = document.getElementById("tag");
         const x =
-          timeScale(e.startTime) +
+          timeScale(e.starttime) +
           theSidePad +
-          (timeScale(e.endTime) - timeScale(e.startTime)) / 2 -
+          (timeScale(e.endtime) - timeScale(e.starttime)) / 2 -
           15 +
           "px";
         const y = eleIndex * theGap + theTopPad + 25 + "px";
         output.innerHTML = tag;
         output.style.top = y;
         output.style.left = x;
+        output.style.fontSize = "9px";
         output.style.display = "block";
       })
       .on("mouseout", () => {
@@ -424,15 +431,16 @@ export default function SupersetPluginGanttChart(
     y = 0;
     let textIndex: any = 0;
     // const innerText =
+    // inner text color
     const innerText = rectangles
       .append("text")
       .text((d: any) => {
-        return d.to;
+        return ( d.to.length > 0 ) ? ((d.to.length > 20 && d.starttime !== d.endtime) ? d.to.substr(0, 15 ) + '...' : d.to) : '' ;
       })
       .attr("x", (d: any) => {
         return (
-          (timeScale(d.endTime) - timeScale(d.startTime)) / 2 +
-          timeScale(d.startTime) +
+          (timeScale(d.endtime) - timeScale(d.starttime)) / 2 +
+          timeScale(d.starttime) +
           theSidePad
         );
       })
@@ -441,7 +449,7 @@ export default function SupersetPluginGanttChart(
           y = prevY;
           return y + 15;
         } else {
-          if (d.endTime == null) {
+          if (d.endtime == null) {
             return 0;
           }
           y = textIndex * theGap + theTopPad;
@@ -451,20 +459,20 @@ export default function SupersetPluginGanttChart(
           return y + 15;
         }
       })
-      .attr("font-size", 11)
+      .attr("font-size", 9)
       .attr("text-anchor", "middle")
       .attr("text-height", theBarHeight)
-      .attr("fill", "#fff");
+      .attr("fill", "#000");
 
     innerText
       .on("mouseover", (e: any, index: any, array: any) => {
         const eleIndex = eleWithIndex.filter((d: any) => d.task === e)[0].index;
-        const tag = `From:  ${e.from} <br/> To:  ${e.to} <br/> Start Time:  ${e.startTime} <br/> End Time:  ${e.endTime}`;
+        const tag = `From:  ${e.from} <br/> To:  ${e.to} <br/> Start Time:  ${e.starttime} <br/> End Time:  ${e.endtime}`;
         const output: any = document.getElementById("tag");
         const x =
-          timeScale(e.startTime) +
+          timeScale(e.starttime) +
           theSidePad +
-          (timeScale(e.endTime) - timeScale(e.startTime)) / 2 -
+          (timeScale(e.endtime) - timeScale(e.starttime)) / 2 -
           15 +
           "px";
         const y = eleIndex * theGap + theTopPad + 25 + "px";
@@ -480,22 +488,23 @@ export default function SupersetPluginGanttChart(
   };
 
   // X Axis label
-  const vertLabels = (theGap: any, theTopPad: any, svg: any) => {
+  const vertLabels = (theGap: any, theTopPad: any, svg: any, filteredData: any) => {
     let prev: any;
     let y: number = 0;
+    // let y1: number = 0;
     let index: number = 0;
     const categories: any = [];
     // console.log('theGap, theTopPad, svg', theGap, theTopPad, svg);
-    svg
+    // draw left side labels
+    const rowLabels = svg
       .append("g")
       .selectAll("text")
-      .data(data.filter((dt) => dt.endTime !== null))
+      .data(filteredData.filter((dt: any) => dt.endtime !== null))
       .enter()
       .append("text")
-      .text((d: any) => {
-        return d.from;
-      })
-      .attr("x", 35)
+      .attr("id", (d: any, i: number) => "ltext" + i)
+      .text((d: any, i: number) => d.to)
+      .attr("x", 150)
       .attr("y", (d: any, i: any) => {
         if (prev && d.from === prev.from && overlapCheck(d, prev)) {
           return;
@@ -504,7 +513,7 @@ export default function SupersetPluginGanttChart(
             y = index * theGap + theTopPad;
             prev = d;
             categories.push(d.from);
-            const check = checkInline(d.from);
+            const check = checkInline(d.from, filteredData);
             if (check.inline !== check.total) {
               index += check.total;
               return y + 15 * check.total - 5;
@@ -517,13 +526,85 @@ export default function SupersetPluginGanttChart(
           }
         }
       })
-      .attr("font-size", 11)
+      .attr("font-size", 9)
+      .attr("width", '150px')
+      .attr("class", "label-left")
       .attr("text-anchor", "end")
-      .attr("text-height", 14);
+      .attr("text-height", 9);
+      
+      // devide left side lable in multiline
+      rowLabels.each(function each(d: any, i: number) {
+        const node = d3.select('#ltext'+i);
+        const textFromNode = node.text();
+        // console.log('textFromNode', textFromNode);
+        const stringArray = stringToChanks(textFromNode, 25);
+        const x: any = node.attr('x');
+        const y: any = node.attr('y');
+        const dy = parseFloat(node.attr('dy')) || 0;
+        const lineHeight = 1.1; // ems
+        node
+          .text('')
+          .append('tspan');
+        stringArray.forEach((element, i) => {
+          node
+            .append('tspan')
+            .attr('x', x)
+            .attr('y', stringArray.length > 1 ? y - 7 : y)
+            .attr('dy', i * lineHeight + dy + 'em')
+            .text(stringArray[i]);  
+        });
+        
+       });
   };
 
-  const checkInline = (task: any) => {
-    const grouped: any = groupData(data.filter((d: any) => d.endTime !== null));
+  function stringToChanks(str: string, chunkSize: number) {
+    const chunks = [];
+    while (str.length > 0) {
+        chunks.push(str.substring(0, chunkSize));
+        str = str.substring(chunkSize, str.length);
+    }
+    return chunks
+}
+
+
+  /*   function wrap(txt: any, data: any, xVal: number, yVal: number, index: number) {
+    const width = data;
+    const text =  d3.select('#ltext'+index);
+    const words = text.text().split(/\s+/).reverse();
+    let word;
+    let line: any = [];
+    let lineNumber = 0;
+    const lineHeight = 1.1; // ems
+    const x = xVal;
+    const y = yVal;
+    const dy = parseFloat(text.attr('dy')) || 0;
+    let tspan: any = text
+      .text('')
+      .append('tspan')
+      .attr('x', x)
+      .attr('y', y)
+      .attr('dy', dy + 'em');
+
+    while ((word = words.pop())) {
+      line.push(word);
+      tspan.text(line.join(' '));
+      const tspanWidth = tspan.node().getComputedTextLength() + 1;
+      if ((tspanWidth + 10) > width) {
+        line.pop();
+        tspan.text(line.join(' '));
+        line = [word];
+        tspan = text
+          .append('tspan')
+          .attr('x', x)
+          .attr('y', y)
+          .attr('dy', ++lineNumber * lineHeight + dy + 'em')
+          .text(word);
+      }
+    }
+  }; */
+
+  const checkInline = (task: any, filteredData: any) => {
+    const grouped: any = groupData(filteredData.filter((d: any) => d.endtime !== null));
     const filter = grouped.groups.filter((d: any) => d.task === task);
     if (filter.length > 0) {
       return {
@@ -559,8 +640,8 @@ export default function SupersetPluginGanttChart(
 
   function overlapCheck(current: any, previous: any) {
     if (
-      current.startTime < previous.endTime &&
-      current.endTime > previous.startTime
+      current.starttime < previous.endtime &&
+      current.endtime > previous.starttime
     ) {
       return false;
     }
@@ -574,7 +655,7 @@ export default function SupersetPluginGanttChart(
     uniqueCategories.forEach((element: any) => {
       const sortedEle = tasks
         .filter((d: any) => d.from === element)
-        .sort((a: any, b: any) => (b.startTime > a.startTime ? -1 : 1));
+        .sort((a: any, b: any) => (b.starttime > a.starttime ? -1 : 1));
       let prev: any;
       const children: any = [];
       sortedEle.forEach((d: any, index: number) => {
